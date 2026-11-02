@@ -1,0 +1,1004 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Birthday MCU Simulator · for Tms · from 悦笔</title>
+<style>
+  *{box-sizing:border-box}
+  body{
+    margin:0;background:#080a0f;color:#c9d1d9;
+    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;
+    display:flex;justify-content:center;padding:18px;
+  }
+  .app{width:min(1200px,100%)}
+  header{
+    display:flex;justify-content:space-between;align-items:baseline;
+    border-bottom:1px solid #1c2230;padding-bottom:8px;margin-bottom:14px;
+  }
+  header h1{font-size:15px;margin:0;color:#7aa2ff;font-weight:600}
+  header span{font-size:12px;color:#6b7280}
+  main{display:grid;grid-template-columns:1fr 1.15fr;gap:14px}
+  @media(max-width:760px){main{grid-template-columns:1fr}}
+
+  /* ---------- 虚拟开发板 ---------- */
+  .board{
+    position:relative;min-height:330px;padding:20px;border-radius:14px;
+    background:
+      radial-gradient(120% 90% at 20% 0%,rgba(90,120,180,.10),transparent 60%),
+      linear-gradient(150deg,#1b2130 0%,#11151f 55%,#0b0e15 100%);
+    border:1px solid #2c3446;
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,.05),
+      inset 0 0 60px rgba(0,0,0,.6),
+      0 10px 30px rgba(0,0,0,.55);
+  }
+  .silk{position:absolute;font-size:10px;color:rgba(210,180,110,.42);letter-spacing:.6px}
+  .silk.tl{top:10px;left:12px}
+  .silk.tr{top:10px;right:12px;text-align:right}
+  .silk.bl{bottom:10px;left:12px}
+  .chip{
+    width:150px;height:78px;margin:28px auto 10px;border-radius:6px;
+    background:linear-gradient(160deg,#15181f,#0a0c10);
+    border:1px solid #2a3040;
+    display:flex;align-items:center;justify-content:center;
+    color:#5b6577;font-size:11px;text-align:center;line-height:1.4;
+    box-shadow:inset 0 0 14px #000,0 1px 0 rgba(255,255,255,.04);
+    cursor:default;user-select:none;
+  }
+  .chip b{color:#8a94a6;font-weight:500}
+  .leds{display:flex;gap:16px;justify-content:center;margin:18px 0}
+  .led{
+    width:34px;height:34px;border-radius:50%;
+    background:#1a1012;border:1px solid #3a1c1c;
+    transition:background .08s,box-shadow .08s,opacity .08s;
+  }
+  .led.on{
+    background:#ff4d4d;
+    box-shadow:0 0 18px #ff4d4d,0 0 36px rgba(255,77,77,.45);
+  }
+  .led-label{
+    font-size:9px;color:rgba(210,180,110,.45);
+    display:flex;gap:30px;justify-content:center;margin-top:-8px;
+  }
+  .key{
+    display:block;margin:18px auto 0;padding:8px 18px;border-radius:6px;
+    background:linear-gradient(180deg,#232a38,#171c26);
+    color:#cfd6e4;border:1px solid #3a4356;font:inherit;font-size:12px;
+    cursor:pointer;box-shadow:0 3px 0 #0a0c10;
+  }
+  .key:active{transform:translateY(2px);box-shadow:0 1px 0 #0a0c10}
+
+  /* ---------- OLED + 串口 ---------- */
+  .io{display:flex;flex-direction:column;gap:12px}
+  .oled{
+    background:#000;color:#6ee7ff;border:1px solid #1b2433;border-radius:8px;
+    padding:12px;min-height:78px;white-space:pre-wrap;font-size:12px;line-height:1.5;
+    box-shadow:inset 0 0 20px rgba(0,220,255,.10);
+  }
+  .uart{
+    background:#000;color:#3fb950;border:1px solid #1b2433;border-radius:8px;
+    padding:10px;height:230px;overflow-y:auto;font-size:12px;line-height:1.55;
+    white-space:pre;overflow-x:auto;
+  }
+  .uart .cmd{color:#7aa2ff}
+  .uart .err{color:#f85149}
+  .uart .sys{color:#8b949e}
+  .uart .tip{color:#d2a8ff}
+  .input-row{
+    display:flex;align-items:center;gap:8px;
+    background:#000;border:1px solid #1b2433;border-radius:8px;padding:8px 10px;
+  }
+  .input-row span{color:#3fb950}
+  .input-row input{
+    flex:1;background:transparent;border:0;outline:0;color:#3fb950;font:inherit;font-size:12px;
+  }
+
+  /* ---------- 脚本按钮区 ---------- */
+  .button-bar{
+    display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;
+  }
+  .button-bar:empty{display:none}
+  .button-bar button{
+    padding:8px 16px;border-radius:8px;font:inherit;font-size:13px;cursor:pointer;
+    background:linear-gradient(180deg,#1f4d2e,#14351f);
+    border:1px solid #2f7a48;color:#b7f7c9;
+    box-shadow:0 2px 0 #0a0c10;
+  }
+  .button-bar button:hover{border-color:#4a9e68}
+  .button-bar button:active{transform:translateY(1px);box-shadow:0 1px 0 #0a0c10}
+
+  /* ---------- 代码面板 ---------- */
+  .code-panel{
+    display:none;
+    margin-top:14px;border:1px solid #1c2230;border-radius:10px;
+    background:#0e1219;overflow:hidden;
+  }
+  .code-panel.show{
+    display:block;
+    animation:panelIn .35s ease;
+  }
+  @keyframes panelIn{
+    from{opacity:0;transform:translateY(-8px)}
+    to{opacity:1;transform:translateY(0)}
+  }
+  .code-head{
+    display:flex;justify-content:space-between;align-items:center;
+    padding:8px 12px;border-bottom:1px solid #1c2230;font-size:12px;color:#8b949e;
+    flex-wrap:wrap;gap:8px;
+  }
+  .code-head b{color:#7aa2ff;font-weight:500}
+  .code-actions{display:flex;gap:8px;flex-wrap:wrap}
+  .code-actions button{
+    padding:5px 12px;border-radius:6px;font:inherit;font-size:12px;cursor:pointer;
+    background:linear-gradient(180deg,#232a38,#171c26);
+    color:#cfd6e4;border:1px solid #3a4356;
+  }
+  .code-actions button:hover{border-color:#5b6b8a}
+  .code-actions button.primary{
+    background:linear-gradient(180deg,#1f4d2e,#14351f);
+    border-color:#2f7a48;color:#b7f7c9;
+  }
+  .code-actions button.danger{
+    background:linear-gradient(180deg,#4d1f1f,#351414);
+    border-color:#7a2f2f;color:#ffb7b7;
+  }
+  .code-editor{
+    display:block;width:100%;height:210px;resize:vertical;
+    background:#0a0d13;color:#d2a8ff;border:0;outline:0;
+    padding:12px;font:inherit;font-size:12px;line-height:1.6;tab-size:2;
+  }
+  .code-tip{
+    padding:6px 12px;font-size:11px;color:#5b6577;border-top:1px solid #1c2230;
+  }
+  .code-tip code{color:#7aa2ff}
+
+  /* ---------- 寄存器监视 ---------- */
+  footer{
+    margin-top:14px;border:1px solid #1c2230;border-radius:10px;
+    background:#0e1219;padding:10px 14px;
+    display:grid;grid-template-columns:repeat(3,1fr);gap:4px 18px;
+    font-size:11px;color:#6b7280;
+  }
+  @media(max-width:760px){footer{grid-template-columns:1fr 1fr}}
+  footer b{color:#7aa2ff;font-weight:500}
+  footer .val{color:#c4a7ff}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <h1>Birthday MCU Simulator · STM32F103C8T6 (virtual)</h1>
+    <span>for Tms · from 悦笔</span>
+  </header>
+
+  <main>
+    <section class="board">
+      <div class="silk tl">BIRTHDAY-BOARD v1.0</div>
+      <div class="silk tr">PB0..PB3 → LED0..LED3<br>KEY → EXTI0</div>
+      <div class="silk bl">from 悦笔 · for Tms · 19th</div>
+
+      <div class="chip" id="chip"><span><b>STM32F103C8T6</b><br>ARM Cortex-M3</span></div>
+
+      <div class="leds">
+        <div class="led" id="led0"></div>
+        <div class="led" id="led1"></div>
+        <div class="led" id="led2"></div>
+        <div class="led" id="led3"></div>
+      </div>
+      <div class="led-label"><span>PB0</span><span>PB1</span><span>PB2</span><span>PB3</span></div>
+
+      <button class="key" id="btn">KEY / EXTI0</button>
+    </section>
+
+    <section class="io">
+      <div class="oled" id="oled">BOOT OK
+for Tms · 19th · from 悦笔
+waiting for command...</div>
+      <div class="uart" id="uart"></div>
+      <div class="input-row">
+        <span>&gt;</span>
+        <input id="cmd" placeholder="输入 help 查看命令" autocomplete="off">
+      </div>
+    </section>
+  </main>
+
+  <div class="button-bar" id="buttonBar"></div>
+
+  <section class="code-panel" id="codePanel">
+    <div class="code-head">
+      <span><b>code</b> · dev mode · </span>
+      <div class="code-actions">
+        <button class="primary" id="runBtn">运行</button>
+        <button class="danger" id="stopBtn">停止</button>
+        <button id="resetBtn">复位板子</button>
+        <button id="sampleBtn">示例</button>
+        <button id="importBtn">导入</button>
+        <button id="exportBtn">导出</button>
+      </div>
+    </div>
+    <textarea class="code-editor" id="editor" spellcheck="false"></textarea>
+    <input type="file" id="fileInput" accept=".c,.h,.txt,.js,.ino,text/*" hidden>
+    <div class="code-tip">
+      可用：<code>gpio_write / led_on / led_off / gpio_toggle</code>、<code>oled_show</code>、<code>uart_print</code>、<code>delay</code>、<code>rand</code>、<code>button_add(label, cb)</code>、<code>set_interval</code>、<code>clear_interval</code>。支持 <code>if / for / while</code>，<code>int/float/char</code> 会自动转成 <code>let</code>。
+    </div>
+  </section>
+
+  <footer id="regs"></footer>
+</div>
+
+<script>
+/* =========================================================
+ * 虚拟寄存器
+ * =======================================================*/
+const REG = {
+  RCC_APB2ENR: 0x00000004,
+  GPIOB_CRL:   0x44444444,
+  GPIOB_ODR:   0x00000000,
+  SysTick_CTRL:0x00000007,
+  SysTick_VAL: 0,
+};
+
+const OWNER = 'Tms';
+const FROM  = '悦笔';
+
+/* =========================================================
+ * 硬件抽象
+ * =======================================================*/
+const LEDS = [0,1,2,3].map(i => document.getElementById('led'+i));
+const OLED = document.getElementById('oled');
+const UART = document.getElementById('uart');
+const CMD  = document.getElementById('cmd');
+const BTN  = document.getElementById('btn');
+const REGS = document.getElementById('regs');
+const EDITOR = document.getElementById('editor');
+const CODE_PANEL = document.getElementById('codePanel');
+const CHIP = document.getElementById('chip');
+const FILE_INPUT = document.getElementById('fileInput');
+const BUTTON_BAR = document.getElementById('buttonBar');
+
+const MODE = { IDLE:'IDLE', BLINK:'BLINK', BREATH:'BREATH', PARTY:'PARTY', EXTERNAL:'EXTERNAL' };
+let mode = MODE.IDLE;
+let tick = 0;
+let blinkPeriod = 25;
+let duty = 0;
+let codeUnlocked = false;
+
+function gpio_write(pin, value){
+  if(value) REG.GPIOB_ODR |=  (1 << pin);
+  else      REG.GPIOB_ODR &= ~(1 << pin);
+}
+function gpio_toggle_mask(mask){ REG.GPIOB_ODR ^= mask; }
+
+function renderLeds(brightness){
+  for(let i=0;i<4;i++){
+    const on = (REG.GPIOB_ODR >> i) & 1;
+    const el = LEDS[i];
+    if(typeof brightness === 'number'){
+      el.classList.add('on');
+      el.style.opacity = 0.15 + 0.85 * (brightness/100);
+      el.style.boxShadow = `0 0 ${8+22*brightness/100}px rgba(255,77,77,${0.3+0.7*brightness/100})`;
+    }else{
+      el.style.opacity = '';
+      el.style.boxShadow = '';
+      el.classList.toggle('on', !!on);
+    }
+  }
+}
+
+function uartPrint(text, cls){
+  const line = document.createElement('div');
+  if(cls) line.className = cls;
+  line.textContent = text;
+  UART.appendChild(line);
+  UART.scrollTop = UART.scrollHeight;
+}
+function uartClear(){ UART.textContent = ''; }
+function oledShow(text){ OLED.textContent = text; }
+
+/* =========================================================
+ * 解锁 code 面板
+ * =======================================================*/
+function unlockCodePanel(silent){
+  if(codeUnlocked){
+    if(!silent) uartPrint('[SYS] dev mode already unlocked', 'sys');
+    return;
+  }
+  codeUnlocked = true;
+  CODE_PANEL.classList.add('show');
+  if(!silent){
+    uartPrint('[SYS] dev mode unlocked — 现在可以自己写代码驱动这块板子', 'sys');
+    oledShow('DEV MODE UNLOCKED\nedit code below\npress RUN');
+  }
+  setTimeout(() => {
+    CODE_PANEL.scrollIntoView({behavior:'smooth', block:'start'});
+  }, 120);
+}
+
+/* =========================================================
+ * 命令解析（内置终端）
+ * =======================================================*/
+function handleCmd(raw){
+  const line = raw.trim();
+  if(!line) return;
+  uartPrint('> ' + line, 'cmd');
+
+  const parts = line.split(/\s+/);
+  const cmd = parts[0].toLowerCase();
+  const arg = parts[1];
+
+  switch(cmd){
+    case 'help':
+      uartPrint(
+        'commands:\n' +
+        '  help          显示帮助\n' +
+        '  led on|off    点亮/熄灭全部 LED\n' +
+        '  blink [ms]    闪烁（默认 500ms）\n' +
+        '  breath        呼吸灯（软件 PWM）\n' +
+        '  stop          停止当前模式\n' +
+        '  reg           打印寄存器\n' +
+        '  reset         复位\n' +
+        '  cls           清屏\n' +
+        '  version       版本信息\n' +
+        '  whoami        看看这是给谁的\n' +
+        '  happy         彩蛋' +
+        (codeUnlocked ? '\n  code          脚本编辑器（已解锁）' : ''),
+        'sys'
+      );
+      break;
+
+    case 'led':
+      if(arg === 'on'){ mode = MODE.IDLE; REG.GPIOB_ODR = 0x0F; renderLeds(); oledShow('LED: ALL ON'); }
+      else if(arg === 'off'){ mode = MODE.IDLE; REG.GPIOB_ODR = 0x00; renderLeds(); oledShow('LED: ALL OFF'); }
+      else uartPrint('usage: led on|off', 'err');
+      break;
+
+    case 'blink':{
+      const ms = parseInt(arg, 10);
+      blinkPeriod = Number.isFinite(ms) ? Math.max(2, Math.round(ms/20)) : 25;
+      mode = MODE.BLINK;
+      oledShow('MODE: BLINK\nperiod = ' + (blinkPeriod*20) + 'ms');
+      uartPrint('[MODE] BLINK, period=' + (blinkPeriod*20) + 'ms', 'sys');
+      break;
+    }
+
+    case 'breath':
+      mode = MODE.BREATH;
+      oledShow('MODE: BREATH\nsoftware PWM on PB0..PB3');
+      uartPrint('[MODE] BREATH', 'sys');
+      break;
+
+    case 'stop':
+      mode = MODE.IDLE;
+      duty = 0;
+      REG.GPIOB_ODR = 0x00;
+      renderLeds();
+      oledShow('MODE: IDLE');
+      uartPrint('[MODE] IDLE', 'sys');
+      break;
+
+    case 'reg':
+      uartPrint(
+        'RCC_APB2ENR = ' + hex(REG.RCC_APB2ENR) + '\n' +
+        'GPIOB_CRL   = ' + hex(REG.GPIOB_CRL)   + '\n' +
+        'GPIOB_ODR   = ' + hex(REG.GPIOB_ODR)   + '\n' +
+        'SysTick_VAL = ' + hex(REG.SysTick_VAL),
+        'sys'
+      );
+      break;
+
+    case 'reset':
+      mode = MODE.IDLE;
+      tick = 0; duty = 0;
+      REG.GPIOB_ODR = 0x00;
+      REG.SysTick_VAL = 0;
+      renderLeds();
+      oledShow('reset...\nBOOT OK for ' + OWNER + ' · 19th');
+      uartPrint('[SYS] reset', 'sys');
+      break;
+
+    case 'cls':
+      uartClear();
+      break;
+
+    case 'version':
+      uartPrint(
+        'Birthday MCU Simulator v1.4\n' +
+        'target: STM32F103C8T6 (virtual)\n' +
+        'build: 19th birthday edition for ' + OWNER + '\n' +
+        'gift from: ' + FROM + '\n' +
+        'script engine: ' + (codeUnlocked ? 'unlocked' : 'locked'),
+        'sys'
+      );
+      break;
+
+    case 'whoami':
+      uartPrint(
+        'you are ' + OWNER + '. 19 years old today.\n' +
+        'this board was compiled just for you by ' + FROM + '.',
+        'sys'
+      );
+      oledShow('whoami -> ' + OWNER + '\n19th birthday\nfrom ' + FROM);
+      break;
+
+    case 'happy':
+      party();
+      break;
+
+    case 'code':
+    case 'dev':
+      unlockCodePanel(false);
+      break;
+
+    default:
+      uartPrint('unknown command: ' + cmd + "（输入 help）", 'err');
+  }
+}
+
+/* =========================================================
+ * 生日彩蛋
+ * =======================================================*/
+function party(){
+  mode = MODE.PARTY;
+  oledShow(' HAPPY 19th BIRTHDAY, ' + OWNER + '!\n your first virtual MCU\n is now blinking for you');
+
+  uartPrint('\n' + String.raw`
+                0   0
+                |   |
+            ____|___|____
+         0  |~ ~ ~ ~ ~ ~|   0
+         |  |           |   |
+      ___|__|___________|___|__
+      |/\/\/\/\/\/\/\/\/\/\/\/|
+  0   |    H a p p y  1 9     |   0
+  |   |/\/\/\/\/\/\/\/\/\/\/\/|   |
+ _|___|_______________________|___|__
+|/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/|
+|                                   |
+|     B i r t h d a y, T m s !      |
+| ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ |
+|___________________________________|
+`, 'sys');
+
+  uartPrint('[PARTY] LED running light started for ' + OWNER + '. type "stop" to exit.', 'sys');
+
+  setTimeout(() => {
+    if(!codeUnlocked){
+      oledShow('HAPPY 19th, ' + OWNER + '!\nwant to write your own?\ntype: code');
+      uartPrint('[TIP] 想自己写代码驱动这块板子？输入 code 试试', 'tip');
+    }
+  }, 4200);
+}
+
+/* =========================================================
+ * 主循环（内置模式）
+ * =======================================================*/
+function mainLoop(){
+  tick++;
+  REG.SysTick_VAL = tick % 1000;
+
+  if(mode === MODE.EXTERNAL){
+    renderRegs();
+    return;
+  }
+
+  if(mode === MODE.BREATH){
+    const phase = (tick % 150) / 150;
+    duty = Math.round(50 - 50 * Math.cos(phase * Math.PI * 2));
+    const pwmOn = (tick % 10) < (duty / 10);
+    REG.GPIOB_ODR = pwmOn ? 0x0F : 0x00;
+    renderLeds(duty);
+  }
+  else if(mode === MODE.BLINK){
+    if(tick % blinkPeriod === 0) gpio_toggle_mask(0x0F);
+    renderLeds();
+  }
+  else if(mode === MODE.PARTY){
+    const pos = Math.floor(tick / 4) % 4;
+    REG.GPIOB_ODR = 1 << pos;
+    renderLeds();
+  }
+
+  renderRegs();
+}
+
+/* =========================================================
+ * 寄存器面板
+ * =======================================================*/
+function hex(n, w=8){ return '0x' + (n>>>0).toString(16).toUpperCase().padStart(w,'0'); }
+
+function renderRegs(){
+  REGS.innerHTML =
+    '<div><b>RCC_APB2ENR</b> <span class="val">' + hex(REG.RCC_APB2ENR) + '</span></div>' +
+    '<div><b>GPIOB_CRL</b> <span class="val">' + hex(REG.GPIOB_CRL) + '</span></div>' +
+    '<div><b>GPIOB_ODR</b> <span class="val">' + hex(REG.GPIOB_ODR) + '</span></div>' +
+    '<div><b>SysTick_CTRL</b> <span class="val">' + hex(REG.SysTick_CTRL) + '</span></div>' +
+    '<div><b>SysTick_VAL</b> <span class="val">' + hex(REG.SysTick_VAL, 4) + '</span></div>' +
+    '<div><b>MODE</b> <span class="val">' + mode + '</span></div>';
+}
+
+/* =========================================================
+ * 脚本引擎
+ * =======================================================*/
+let worker = null;
+let workerUrl = null;
+
+const SAMPLE_BLINK = `
+int i;
+oled_show("Hello, Tms!");
+uart_print("[APP] start");
+for (i = 0; i < 4; i++) {
+  led_on(i);
+  uart_print("PB" + i + " -> ON");
+  delay(250);
+}
+delay(300);
+for (i = 0; i < 4; i++) {
+  led_off(i);
+  delay(150);
+}
+for (i = 0; i < 3; i++) {
+  gpio_write(0, 1); gpio_write(1, 1); gpio_write(2, 1); gpio_write(3, 1);
+  delay(120);
+  gpio_write(0, 0); gpio_write(1, 0); gpio_write(2, 0); gpio_write(3, 0);
+  delay(120);
+}
+oled_show("HAPPY 19th, Tms!\\n要开心吖[]~(￣▽￣)~*");
+uart_print("[APP] done. 19th birthday!");
+`;
+
+const SAMPLE_MORSE = `// Morse 电报机 + 19 下闪光
+int DOT  = 80;
+int DASH = DOT * 3;
+int GAP  = DOT;
+int LGAP = DOT * 3;
+int i;
+int j;
+let morse = {
+  "A": ".-",   "B": "-...", "C": "-.-.", "D": "-..",
+  "E": ".",    "F": "..-.", "G": "--.",  "H": "....",
+  "I": "..",   "J": ".---", "K": "-.-",  "L": ".-..",
+  "M": "--",   "N": "-.",   "O": "---",  "P": ".--.",
+  "Q": "--.-", "R": ".-.",  "S": "...",  "T": "-",
+  "U": "..-",  "V": "...-", "W": ".--",  "X": "-..-",
+  "Y": "-.--", "Z": "--..",
+  "0": "-----","1": ".----","2": "..---","3": "...--",
+  "4": "....-","5": ".....","6": "-....","7": "--...",
+  "8": "---..","9": "----."
+};
+let text = "TMS 19";
+let code = "";
+let log  = "";
+oled_show("MORSE TX\\n" + text);
+uart_print("[MORSE] start: " + text);
+delay(500);
+for (i = 0; i < text.length; i++) {
+  if (text[i] == " ") {
+    log = log + " / ";
+    uart_print("[MORSE] /");
+    delay(LGAP * 2);
+    continue;
+  }
+  code = morse[text[i]];
+  if (!code) continue;
+  log = log + code + " ";
+  uart_print("[MORSE] " + text[i] + " -> " + code);
+  oled_show("MORSE TX\\n" + text + "\\n>> " + text[i] + " : " + code);
+  for (j = 0; j < code.length; j++) {
+    led_on(0);
+    if (code[j] == ".") delay(DOT); else delay(DASH);
+    led_off(0);
+    delay(GAP);
+  }
+  delay(LGAP);
+}
+uart_print("[MORSE] full: " + log);
+oled_show("MORSE DONE\\n" + log);
+delay(800);
+uart_print("[BIRTHDAY] 19 flashes for 19 years");
+oled_show("HAPPY 19th, TMS!\\n19 flashes coming...");
+for (i = 0; i < 19; i++) {
+  gpio_write(0, 1); gpio_write(1, 1); gpio_write(2, 1); gpio_write(3, 1);
+  delay(70);
+  gpio_write(0, 0); gpio_write(1, 0); gpio_write(2, 0); gpio_write(3, 0);
+  delay(110);
+}
+oled_show("HAPPY 19th, TMS!\\nfrom 悦笔");
+uart_print("[APP] done. 19th birthday!");
+`;
+
+const SAMPLE_PONG = `// LED PONG · first to 5
+int pos = 0;
+int dir = 1;
+int scoreA = 0;
+int scoreB = 0;
+int hitRate = 72;
+int i;
+oled_show("LED PONG\\nfirst to 5");
+uart_print("[PONG] LED PONG start. first to 5.");
+delay(600);
+while (scoreA < 5 && scoreB < 5) {
+  gpio_write(0, pos == 0 ? 1 : 0);
+  gpio_write(1, pos == 1 ? 1 : 0);
+  gpio_write(2, pos == 2 ? 1 : 0);
+  gpio_write(3, pos == 3 ? 1 : 0);
+  oled_show("LED PONG\\nA " + scoreA + " : " + scoreB + " B\\nball @ PB" + pos);
+  delay(90);
+  pos = pos + dir;
+  if (pos < 0) {
+    if (rand(100) < hitRate) {
+      dir = 1; pos = 0;
+      uart_print("[PONG] A hit! ball back to PB0");
+      delay(50);
+    } else {
+      scoreB = scoreB + 1;
+      uart_print("[PONG] A missed! B +1  (" + scoreA + ":" + scoreB + ")");
+      pos = 1; dir = 1;
+      delay(260);
+    }
+  } else if (pos > 3) {
+    if (rand(100) < hitRate) {
+      dir = -1; pos = 3;
+      uart_print("[PONG] B hit! ball back to PB3");
+      delay(50);
+    } else {
+      scoreA = scoreA + 1;
+      uart_print("[PONG] B missed! A +1  (" + scoreA + ":" + scoreB + ")");
+      pos = 2; dir = -1;
+      delay(260);
+    }
+  }
+}
+gpio_write(0, 0); gpio_write(1, 0); gpio_write(2, 0); gpio_write(3, 0);
+if (scoreA >= 5) {
+  uart_print("[PONG] A wins " + scoreA + ":" + scoreB);
+  oled_show("A WINS!\\n" + scoreA + ":" + scoreB + "\\nHappy 19th, Tms!");
+} else {
+  uart_print("[PONG] B wins " + scoreA + ":" + scoreB);
+  oled_show("B WINS!\\n" + scoreA + ":" + scoreB + "\\nHappy 19th, Tms!");
+}
+for (i = 0; i < 19; i++) {
+  gpio_write(0, 1); gpio_write(1, 1); gpio_write(2, 1); gpio_write(3, 1);
+  delay(60);
+  gpio_write(0, 0); gpio_write(1, 0); gpio_write(2, 0); gpio_write(3, 0);
+  delay(90);
+}
+oled_show("HAPPY 19th, TMS!\\nfrom 悦笔");
+uart_print("[PONG] done. 19th birthday!");
+`;
+
+const SAMPLE_WHACK = `// LED 打地鼠 · for Tms
+// 19 次机会，LED 随机亮，800ms 内点对应按钮算 hit
+int score = 0;
+int round = 0;
+int target = -1;
+int active = 0;
+
+function allOff() {
+  gpio_write(0, 0); gpio_write(1, 0); gpio_write(2, 0); gpio_write(3, 0);
+}
+
+function finish() {
+  allOff();
+  oled_show("GAME OVER\\nscore: " + score + "/19\\nHappy 19th, Tms!");
+  uart_print("[GAME] done. score=" + score + "/19");
+  if (score >= 19) {
+    for (let i = 0; i < 19; i++) {
+      gpio_write(0,1); gpio_write(1,1); gpio_write(2,1); gpio_write(3,1);
+      delay(60);
+      gpio_write(0,0); gpio_write(1,0); gpio_write(2,0); gpio_write(3,0);
+      delay(90);
+    }
+  }
+}
+
+function nextRound() {
+  if (round >= 19) { finish(); return; }
+  round = round + 1;
+  allOff();
+  target = rand(4);
+  active = 1;
+  gpio_write(target, 1);
+  oled_show("打地鼠 " + round + "/19\\nscore: " + score + "\\nhit PB" + target + "!");
+  uart_print("[GAME] round " + round + ": PB" + target);
+  setTimeout(function(){
+    if (active) {
+      active = 0;
+      allOff();
+      uart_print("[GAME] miss! PB" + target + " escaped");
+      oled_show("MISS!\\nscore: " + score);
+      setTimeout(nextRound, 500);
+    }
+  }, 800);
+}
+
+for (let i = 0; i < 4; i++) {
+  let pin = i;
+  button_add("打 PB" + pin, function(){
+    if (active && target == pin) {
+      active = 0;
+      score = score + 1;
+      allOff();
+      uart_print("[GAME] HIT! score=" + score);
+      oled_show("HIT!\\nscore: " + score + "/19");
+      setTimeout(nextRound, 400);
+    } else {
+      uart_print("[GAME] wrong: PB" + pin);
+    }
+  });
+}
+
+oled_show("打地鼠\\n19 次机会\\n点按钮开打!");
+uart_print("[GAME] whack-a-mole start. 19 rounds.");
+nextRound();
+`;
+
+const SAMPLES = [
+  { name: 'blink', code: SAMPLE_BLINK },
+  { name: 'morse', code: SAMPLE_MORSE },
+  { name: 'pong',  code: SAMPLE_PONG },
+  { name: 'whack', code: SAMPLE_WHACK },
+];
+let sampleIndex = 0;
+
+function cToJs(code){
+  return code.replace(/(^|[;{}(,\n])([ \t]*)(int|float|char|void)\s+/gm, '$1$2let ');
+}
+
+function buildWorkerSource(userCode){
+  const prelude = [
+    '"use strict";',
+    'const __start = Date.now();',
+    'const __limit = 15000;',
+    'let __running = true;',
+    'let __odr = 0;',
+    'function __check(){',
+    '  if (!__running) return;',
+    '  if (Date.now() - __start > __limit) {',
+    "    postMessage({type:'error', msg:'execution timeout (>15s)'});",
+    '    self.close();',
+    "    throw new Error('timeout');",
+    '  }',
+    '}',
+    'function gpio_write(pin, val){',
+    '  __check();',
+    '  const v = val ? 1 : 0;',
+    '  if (v) __odr |= (1 << pin); else __odr &= ~(1 << pin);',
+    "  postMessage({type:'gpio', odr: __odr >>> 0});",
+    '}',
+    'function led_on(pin){ gpio_write(pin, 1); }',
+    'function led_off(pin){ gpio_write(pin, 0); }',
+    'function gpio_toggle(pin){',
+    '  __check();',
+    '  __odr ^= (1 << pin);',
+    "  postMessage({type:'gpio', odr: __odr >>> 0});",
+    '}',
+    'function oled_show(s){ __check(); postMessage({type:"oled", text:String(s)}); }',
+    'function uart_print(s){ __check(); postMessage({type:"uart", text:String(s)}); }',
+    'function delay(ms){',
+    '  const end = Date.now() + Math.max(0, Number(ms) || 0);',
+    '  while (Date.now() < end) { __check(); }',
+    '}',
+    'function rand(n){ return Math.floor(Math.random() * (Number(n) || 1)); }',
+    'let __btnId = 0;',
+    'const __btnCallbacks = {};',
+    'function button_add(label, cb){',
+    '  const id = ++__btnId;',
+    '  __btnCallbacks[id] = cb;',
+    "  postMessage({type:'button_add', id: id, label: String(label)});",
+    '  return id;',
+    '}',
+    'function set_interval(ms, cb){',
+    '  return setInterval(function(){ try { cb(); } catch(e){ postMessage({type:"error", msg:String(e && e.message || e)}); } }, ms);',
+    '}',
+    'function clear_interval(id){ clearInterval(id); }',
+    'self.onmessage = function(e){',
+    '  if (e.data && e.data.type === "button_press") {',
+    '    const cb = __btnCallbacks[e.data.id];',
+    '    if (cb) { try { cb(); } catch(err){ postMessage({type:"error", msg:String(err && err.message || err)}); } }',
+    '  }',
+    '};',
+    'try {',
+  ].join('\n');
+
+  const epilogue = [
+    '  __running = false;',
+    "  postMessage({type:'done'});",
+    '} catch (e) {',
+    '  __running = false;',
+    "  postMessage({type:'error', msg: String(e && e.message || e)});",
+    '}',
+  ].join('\n');
+
+  return prelude + '\n' + cToJs(userCode) + '\n' + epilogue;
+}
+
+function stopWorker(announce){
+  if(worker){
+    worker.terminate();
+    worker = null;
+    if(announce) uartPrint('[SYS] execution stopped', 'sys');
+  }
+  if(workerUrl){ URL.revokeObjectURL(workerUrl); workerUrl = null; }
+  BUTTON_BAR.innerHTML = '';
+  REG.GPIOB_ODR = 0x00;
+  renderLeds();
+}
+
+function runCode(){
+  if(!codeUnlocked){
+    uartPrint('[SYS] dev mode locked. type "code" to unlock.', 'err');
+    return;
+  }
+  stopWorker(false);
+  mode = MODE.EXTERNAL;
+  BUTTON_BAR.innerHTML = '';
+  const src = buildWorkerSource(EDITOR.value);
+  const blob = new Blob([src], {type:'application/javascript'});
+  workerUrl = URL.createObjectURL(blob);
+  worker = new Worker(workerUrl);
+
+  uartPrint('[SYS] compile + run', 'sys');
+  oledShow('EXTERNAL MODE\nrunning user code...');
+
+  worker.onmessage = (e) => {
+    const d = e.data || {};
+    if(d.type === 'gpio'){
+      REG.GPIOB_ODR = d.odr >>> 0;
+      renderLeds();
+    }else if(d.type === 'oled'){
+      oledShow(d.text);
+    }else if(d.type === 'uart'){
+      uartPrint(d.text, 'sys');
+    }else if(d.type === 'button_add'){
+      const btn = document.createElement('button');
+      btn.textContent = d.label;
+      btn.addEventListener('click', () => {
+        if(worker) worker.postMessage({type:'button_press', id: d.id});
+        uartPrint('[BTN] ' + d.label, 'sys');
+      });
+      BUTTON_BAR.appendChild(btn);
+    }else if(d.type === 'done'){
+      uartPrint('[SYS] program ready. buttons active.', 'sys');
+    }else if(d.type === 'error'){
+      uartPrint('[ERROR] ' + d.msg, 'err');
+      stopWorker(false);
+    }
+  };
+
+  worker.onerror = (e) => {
+    uartPrint('[ERROR] ' + (e.message || 'worker error'), 'err');
+    stopWorker(false);
+  };
+}
+
+/* =========================================================
+ * 按钮绑定
+ * =======================================================*/
+document.getElementById('runBtn').addEventListener('click', runCode);
+document.getElementById('stopBtn').addEventListener('click', () => stopWorker(true));
+document.getElementById('resetBtn').addEventListener('click', () => {
+  stopWorker(false);
+  handleCmd('reset');
+});
+document.getElementById('sampleBtn').addEventListener('click', () => {
+  sampleIndex = (sampleIndex + 1) % SAMPLES.length;
+  EDITOR.value = SAMPLES[sampleIndex].code;
+  uartPrint('[SYS] sample loaded: ' + SAMPLES[sampleIndex].name + ' (' + (sampleIndex+1) + '/' + SAMPLES.length + ')', 'sys');
+});
+
+/* ---------- 导入 ---------- */
+document.getElementById('importBtn').addEventListener('click', () => {
+  FILE_INPUT.value = '';
+  FILE_INPUT.click();
+});
+
+FILE_INPUT.addEventListener('change', () => {
+  const file = FILE_INPUT.files && FILE_INPUT.files[0];
+  if(!file) return;
+  if(file.size > 1024 * 1024){
+    uartPrint('[ERROR] 文件太大（>1MB），拒绝导入', 'err');
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = () => {
+    EDITOR.value = String(reader.result || '');
+    const lines = EDITOR.value.split('\n').length;
+    uartPrint('[SYS] imported: ' + file.name + ' (' + lines + ' lines)', 'sys');
+    oledShow('IMPORT OK\n' + file.name);
+  };
+  reader.onerror = () => {
+    uartPrint('[ERROR] 读取文件失败', 'err');
+  };
+  reader.readAsText(file, 'utf-8');
+});
+
+/* ---------- 导出 ---------- */
+document.getElementById('exportBtn').addEventListener('click', () => {
+  const code = EDITOR.value;
+  if(!code.trim()){
+    uartPrint('[SYS] 编辑器为空，没有可导出的内容', 'err');
+    return;
+  }
+  const d = new Date();
+  const stamp =
+    d.getFullYear() +
+    String(d.getMonth() + 1).padStart(2, '0') +
+    String(d.getDate()).padStart(2, '0');
+  const filename = 'tms_code_' + stamp + '.c';
+
+  const blob = new Blob([code], {type:'text/plain;charset=utf-8'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+
+  uartPrint('[SYS] exported: ' + filename, 'sys');
+});
+
+/* Tab 插入两个空格，Ctrl/Cmd+Enter 运行 */
+EDITOR.addEventListener('keydown', (e) => {
+  if(e.key === 'Tab'){
+    e.preventDefault();
+    const start = EDITOR.selectionStart;
+    const end = EDITOR.selectionEnd;
+    EDITOR.value = EDITOR.value.slice(0, start) + '  ' + EDITOR.value.slice(end);
+    EDITOR.selectionStart = EDITOR.selectionEnd = start + 2;
+  }
+  if((e.ctrlKey || e.metaKey) && e.key === 'Enter'){
+    e.preventDefault();
+    runCode();
+  }
+});
+
+/* 隐藏触发：双击芯片解锁 */
+CHIP.addEventListener('dblclick', () => unlockCodePanel(false));
+
+/* 按键中断（内置模式） */
+BTN.addEventListener('click', () => {
+  uartPrint('[EXTI0] KEY pressed', 'sys');
+  if(mode === MODE.IDLE)       handleCmd('blink 500');
+  else if(mode === MODE.BLINK) handleCmd('breath');
+  else                         handleCmd('stop');
+});
+
+CMD.addEventListener('keydown', e => {
+  if(e.key !== 'Enter') return;
+  const v = CMD.value;
+  CMD.value = '';
+  handleCmd(v);
+});
+
+/* =========================================================
+ * 开机
+ * =======================================================*/
+(function boot(){
+  EDITOR.value = SAMPLES[0].code;
+  const lines = [
+    '[BOOT] Birthday MCU Simulator v1.4',
+    '[BOOT] target: STM32F103C8T6 (virtual)',
+    '[BOOT] built for ' + OWNER + "'s 19th birthday",
+    '[BOOT] gift from ' + FROM,
+    '[BOOT] RCC: HSE 8MHz -> PLL x9 = 72MHz',
+    '[BOOT] GPIOB clock enabled',
+    '[BOOT] OLED init OK',
+    '[BOOT] UART1 115200 8N1',
+    '[BOOT] script engine ready',
+    "[BOOT] type 'help' or 'happy'",
+  ];
+  let i = 0;
+  const t = setInterval(() => {
+    uartPrint(lines[i++], 'sys');
+    if(i >= lines.length) clearInterval(t);
+  }, 180);
+})();
+
+setInterval(mainLoop, 20);
+renderRegs();
+</script>
+</body>
+</html>
